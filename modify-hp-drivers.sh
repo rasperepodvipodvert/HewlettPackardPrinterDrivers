@@ -18,7 +18,7 @@ DMG_FILE="HewlettPackardPrinterDrivers.dmg"
 PKG_FILE="HewlettPackardPrinterDrivers.pkg"
 MODIFIED_PKG="HewlettPackardPrinterDrivers-modified.pkg"
 EXTRACTED_DIR="extracted"
-MOUNT_POINT="/Volumes/HP Easy Start"
+MOUNT_POINT=""
 
 # Functions
 print_step() {
@@ -38,9 +38,16 @@ cleanup() {
     print_step "Cleaning up temporary files..."
 
     # Unmount DMG if mounted
-    if [ -d "$MOUNT_POINT" ]; then
+    if [ -n "$MOUNT_POINT" ] && [ -d "$MOUNT_POINT" ]; then
         hdiutil detach "$MOUNT_POINT" 2>/dev/null || true
     fi
+
+    # Try to unmount any HP-related volumes as fallback
+    for vol in /Volumes/HP*; do
+        if [ -d "$vol" ]; then
+            hdiutil detach "$vol" 2>/dev/null || true
+        fi
+    done
 
     # Remove extracted directory
     if [ -d "$EXTRACTED_DIR" ]; then
@@ -69,21 +76,42 @@ else
     print_step "Downloading HP printer drivers..."
     curl -L -o "$DMG_FILE" "$DMG_URL" || print_error "Failed to download DMG file"
 
-    # Step 2: Mount DMG
+    # Step 2: Mount DMG and get mount point
     print_step "Mounting DMG..."
-    hdiutil attach "$DMG_FILE" -quiet || print_error "Failed to mount DMG"
+    MOUNT_OUTPUT=$(hdiutil attach "$DMG_FILE" -nobrowse 2>&1) || print_error "Failed to mount DMG"
 
-    # Step 3: Copy PKG from DMG
-    print_step "Extracting package from DMG..."
-    if [ -f "$MOUNT_POINT/$PKG_FILE" ]; then
-        cp "$MOUNT_POINT/$PKG_FILE" . || print_error "Failed to copy package"
+    # Extract mount point from hdiutil output (last column)
+    MOUNT_POINT=$(echo "$MOUNT_OUTPUT" | grep "/Volumes/" | awk '{print $NF}' | head -1)
+
+    if [ -z "$MOUNT_POINT" ] || [ ! -d "$MOUNT_POINT" ]; then
+        print_error "Failed to determine mount point"
+    fi
+
+    print_step "DMG mounted at: $MOUNT_POINT"
+
+    # Step 3: Find and copy PKG from DMG
+    print_step "Searching for package file in DMG..."
+
+    # Try to find the pkg file (case insensitive, recursive search)
+    PKG_PATH=$(find "$MOUNT_POINT" -iname "*.pkg" -type f 2>/dev/null | grep -i "HewlettPackard" | head -1)
+
+    if [ -z "$PKG_PATH" ]; then
+        # If specific search fails, try any .pkg file
+        PKG_PATH=$(find "$MOUNT_POINT" -iname "*.pkg" -type f 2>/dev/null | head -1)
+    fi
+
+    if [ -n "$PKG_PATH" ] && [ -f "$PKG_PATH" ]; then
+        print_step "Found package: $(basename "$PKG_PATH")"
+        print_step "Copying package..."
+        cp "$PKG_PATH" "./$PKG_FILE" || print_error "Failed to copy package"
     else
-        print_error "Package not found in DMG"
+        print_error "Package not found in DMG. Contents of DMG:\n$(ls -R "$MOUNT_POINT")"
     fi
 
     # Step 4: Unmount DMG
     print_step "Unmounting DMG..."
     hdiutil detach "$MOUNT_POINT" -quiet || print_warning "Failed to unmount DMG"
+    MOUNT_POINT=""
 
     # Remove DMG file
     rm -f "$DMG_FILE"
