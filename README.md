@@ -1,8 +1,12 @@
 # Hewlett Packard Printer Drivers for macOS
 
+[![Test HP Drivers Script](https://github.com/rasperepodvipodvert/HewlettPackardPrinterDrivers/actions/workflows/test-script.yml/badge.svg)](https://github.com/rasperepodvipodvert/HewlettPackardPrinterDrivers/actions/workflows/test-script.yml)
+
 This repository contains an automated script and instructions for modifying Hewlett Packard printer drivers for macOS to remove version restrictions.
 
 The original HP drivers have a version check that prevents installation on newer macOS versions. This script modifies the package to work on any macOS version.
+
+> **Note:** The modification script is automatically tested daily on the latest macOS to ensure it works correctly.
 
 ## Download Original Drivers
 

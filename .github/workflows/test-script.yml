@@ -1,0 +1,115 @@
+name: Test HP Drivers Modification Script
+
+on:
+  # Run daily at 9:00 AM UTC
+  schedule:
+    - cron: '0 9 * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+  # Run on push to main (for testing)
+  push:
+    branches:
+      - main
+    paths:
+      - 'modify-hp-drivers.sh'
+      - '.github/workflows/test-script.yml'
+
+jobs:
+  test-modification-script:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Display macOS version
+        run: |
+          echo "macOS Version:"
+          sw_vers
+          echo ""
+          echo "Darwin Version:"
+          uname -r
+
+      - name: Check script permissions
+        run: |
+          ls -la modify-hp-drivers.sh
+          if [ ! -x modify-hp-drivers.sh ]; then
+            echo "Error: Script is not executable"
+            exit 1
+          fi
+
+      - name: Run modification script
+        run: |
+          echo "Running HP drivers modification script..."
+          ./modify-hp-drivers.sh
+        timeout-minutes: 15
+
+      - name: Verify modified package was created
+        run: |
+          if [ ! -f "HewlettPackardPrinterDrivers-modified.pkg" ]; then
+            echo "Error: Modified package not found"
+            exit 1
+          fi
+
+          echo "Modified package found:"
+          ls -lh HewlettPackardPrinterDrivers-modified.pkg
+
+      - name: Extract and verify modification
+        run: |
+          echo "Extracting modified package for verification..."
+          pkgutil --expand HewlettPackardPrinterDrivers-modified.pkg verify_extracted
+
+          echo "Checking Distribution file..."
+          if [ ! -f "verify_extracted/Distribution" ]; then
+            echo "Error: Distribution file not found"
+            exit 1
+          fi
+
+          echo "Verifying version modification..."
+          if grep -q "'99.0'" verify_extracted/Distribution; then
+            echo "✓ Version check successfully modified to 99.0"
+          else
+            echo "✗ Error: Version not modified correctly"
+            echo "Distribution content:"
+            cat verify_extracted/Distribution
+            exit 1
+          fi
+
+          if grep -q "'26.1'" verify_extracted/Distribution; then
+            echo "✗ Error: Old version check (26.1) still present"
+            exit 1
+          fi
+
+          echo "✓ All modifications verified successfully"
+
+      - name: Test package info
+        run: |
+          echo "Package information:"
+          pkgutil --bom verify_extracted/HewlettPackardPrinterDrivers.pkg | head -20 || true
+
+      - name: Cleanup test files
+        if: always()
+        run: |
+          rm -rf verify_extracted
+          rm -f HewlettPackardPrinterDrivers-modified.pkg
+          rm -f HewlettPackardPrinterDrivers.pkg
+
+      - name: Report success
+        if: success()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✓ Test completed successfully!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "The modification script is working correctly."
+          echo "HP drivers can be successfully modified on macOS $(sw_vers -productVersion)"
+
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✗ Test failed!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Please check the logs above for details."
+          exit 1
