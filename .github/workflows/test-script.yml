@@ -71,14 +71,17 @@ jobs:
           if grep -q "'99.0'" verify_extracted/Distribution; then
             echo "✓ Version check successfully modified to 99.0"
           else
-            echo "✗ Error: Version not modified correctly"
+            echo "✗ Error: Version not modified correctly - 99.0 not found"
             echo "Distribution content:"
             cat verify_extracted/Distribution
             exit 1
           fi
 
-          if grep -q "'26.1'" verify_extracted/Distribution; then
-            echo "✗ Error: Old version check (26.1) still present"
+          # Check that common old version numbers are not present
+          if grep -E "'(15\.0|26\.1)'" verify_extracted/Distribution | grep -q "ProductVersion"; then
+            echo "✗ Error: Old version check still present in ProductVersion comparison"
+            echo "Found:"
+            grep -E "'(15\.0|26\.1)'" verify_extracted/Distribution
             exit 1
           fi
 

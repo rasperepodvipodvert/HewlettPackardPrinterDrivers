@@ -85,10 +85,12 @@ nano extracted/Distribution
 Find the line with version check (around line 16):
 
 ```xml
-if (system.compareVersions(system.version.ProductVersion, '26.1') &gt; 0) {
+if (system.compareVersions(system.version.ProductVersion, 'X.X') &gt; 0) {
 ```
 
-Change `'26.1'` to `'99.0'` to remove practical version limits:
+Where `X.X` could be `'15.0'`, `'26.1'`, or another version number.
+
+Change the version to `'99.0'` to remove practical version limits:
 
 ```xml
 if (system.compareVersions(system.version.ProductVersion, '99.0') &gt; 0) {
@@ -96,10 +98,10 @@ if (system.compareVersions(system.version.ProductVersion, '99.0') &gt; 0) {
 
 This means the installer will work on any macOS version up to 99.0.
 
-**Alternative using sed:**
+**Using sed (replace any version number):**
 
 ```bash
-sed -i '' "s/'26.1'/'99.0'/g" extracted/Distribution
+sed -i '' -E "s/(ProductVersion, ')([0-9]+\.[0-9]+)/\199.0/g" extracted/Distribution
 ```
 
 ### Step 3: Repackage
@@ -127,7 +129,7 @@ rm -rf extracted
 ```bash
 # Extract, modify, and repackage in one go
 pkgutil --expand HewlettPackardPrinterDrivers.pkg extracted && \
-sed -i '' "s/'26.1'/'99.0'/g" extracted/Distribution && \
+sed -i '' -E "s/(ProductVersion, ')([0-9]+\.[0-9]+)/\199.0/g" extracted/Distribution && \
 pkgutil --flatten extracted HewlettPackardPrinterDrivers-modified.pkg && \
 rm -rf extracted
 ```
@@ -136,7 +138,11 @@ rm -rf extracted
 
 ### What Was Changed
 
-The original package contained a version check that prevented installation on macOS versions newer than 26.1. The modification changes this limit to 99.0, effectively removing the restriction for all current and foreseeable macOS versions.
+The original package contains a version check that prevents installation on newer macOS versions. Different package versions may have different limits:
+- Some packages check for macOS 15.0 (Sequoia)
+- Others may check for 26.1 or other versions
+
+The modification changes this limit to 99.0, effectively removing the restriction for all current and foreseeable macOS versions.
 
 ### What Was NOT Changed
 
@@ -149,8 +155,9 @@ The original package contained a version check that prevented installation on ma
 - macOS 15.x (Sequoia) = Darwin 25.x
 - macOS 14.x (Sonoma) = Darwin 24.x
 - macOS 13.x (Ventura) = Darwin 23.x
+- macOS 16.x (future) = Darwin 26.x
 
-Original limit of 26.1 meant the drivers would work up to early macOS 16.x versions.
+The modification script automatically detects and replaces any version restriction with 99.0.
 
 ## Troubleshooting
 

@@ -144,22 +144,21 @@ fi
 # Try multiple version patterns that might be in the file
 VERSION_MODIFIED=false
 
-# Try pattern: '26.1'
-if grep -q "'26.1'" "$DISTRIBUTION_FILE"; then
-    sed -i '' "s/'26.1'/'99.0'/g" "$DISTRIBUTION_FILE"
-    VERSION_MODIFIED=true
-fi
+# Find and replace version in ProductVersion comparison
+# Pattern: system.compareVersions(system.version.ProductVersion, 'X.X')
+# Replace any version number with 99.0
+if grep -q "system.version.ProductVersion" "$DISTRIBUTION_FILE"; then
+    # Replace version in single quotes (most common)
+    if grep -q "ProductVersion, '[0-9]" "$DISTRIBUTION_FILE"; then
+        sed -i '' -E "s/(ProductVersion, ')([0-9]+\.[0-9]+)/\199.0/g" "$DISTRIBUTION_FILE"
+        VERSION_MODIFIED=true
+    fi
 
-# Try pattern: "26.1"
-if grep -q '"26.1"' "$DISTRIBUTION_FILE"; then
-    sed -i '' 's/"26.1"/"99.0"/g' "$DISTRIBUTION_FILE"
-    VERSION_MODIFIED=true
-fi
-
-# Try pattern: 26.1 (without quotes)
-if grep -q "26\.1" "$DISTRIBUTION_FILE" && [ "$VERSION_MODIFIED" = false ]; then
-    sed -i '' 's/26\.1/99.0/g' "$DISTRIBUTION_FILE"
-    VERSION_MODIFIED=true
+    # Replace version in double quotes
+    if grep -q 'ProductVersion, "[0-9]' "$DISTRIBUTION_FILE"; then
+        sed -i '' -E 's/(ProductVersion, ")([0-9]+\.[0-9]+)/\199.0/g' "$DISTRIBUTION_FILE"
+        VERSION_MODIFIED=true
+    fi
 fi
 
 # Verify modification
