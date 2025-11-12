@@ -132,14 +132,45 @@ fi
 # Backup original Distribution file
 cp "$DISTRIBUTION_FILE" "$DISTRIBUTION_FILE.backup"
 
-# Replace version check: '26.1' -> '99.0'
-sed -i '' "s/'26.1'/'99.0'/g" "$DISTRIBUTION_FILE" || print_error "Failed to modify Distribution file"
+# Show original version check
+print_step "Checking original version restrictions..."
+if grep -q "ProductVersion" "$DISTRIBUTION_FILE"; then
+    echo "Found version checks in Distribution file:"
+    grep "ProductVersion" "$DISTRIBUTION_FILE" | head -3
+else
+    print_warning "No ProductVersion checks found in Distribution file"
+fi
+
+# Try multiple version patterns that might be in the file
+VERSION_MODIFIED=false
+
+# Try pattern: '26.1'
+if grep -q "'26.1'" "$DISTRIBUTION_FILE"; then
+    sed -i '' "s/'26.1'/'99.0'/g" "$DISTRIBUTION_FILE"
+    VERSION_MODIFIED=true
+fi
+
+# Try pattern: "26.1"
+if grep -q '"26.1"' "$DISTRIBUTION_FILE"; then
+    sed -i '' 's/"26.1"/"99.0"/g' "$DISTRIBUTION_FILE"
+    VERSION_MODIFIED=true
+fi
+
+# Try pattern: 26.1 (without quotes)
+if grep -q "26\.1" "$DISTRIBUTION_FILE" && [ "$VERSION_MODIFIED" = false ]; then
+    sed -i '' 's/26\.1/99.0/g' "$DISTRIBUTION_FILE"
+    VERSION_MODIFIED=true
+fi
 
 # Verify modification
-if grep -q "'99.0'" "$DISTRIBUTION_FILE"; then
-    print_step "Version check successfully modified (26.1 -> 99.0)"
+if [ "$VERSION_MODIFIED" = true ]; then
+    print_step "Version check successfully modified"
+    echo "New version checks:"
+    grep "ProductVersion" "$DISTRIBUTION_FILE" | head -3 || echo "(No ProductVersion lines found after modification)"
 else
-    print_error "Failed to verify modification"
+    print_warning "No known version patterns found to modify. Package may work without changes."
+    echo "Distribution file content (first 30 lines):"
+    head -30 "$DISTRIBUTION_FILE"
 fi
 
 # Step 7: Repackage
