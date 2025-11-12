@@ -87,11 +87,6 @@ jobs:
 
           echo "✓ All modifications verified successfully"
 
-      - name: Test package info
-        run: |
-          echo "Package information:"
-          pkgutil --bom verify_extracted/HewlettPackardPrinterDrivers.pkg | head -20 || true
-
       - name: Cleanup test files
         if: always()
         run: |
